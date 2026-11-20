@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { prefetchNodes, useGeneTree, useProtein } from './api/queries';
-import { lca, ungapped, type GeneTree } from './model/geneTree';
+import { lca, ungapped, type GeneTree, type GeneTreeNode } from './model/geneTree';
+import {
+  ancestorAligned,
+  ancestorStructure,
+  usePrioritise,
+  useReconstruction,
+  type Reconstruction,
+} from './api/ancestors';
+import type { StructureSource } from './api/alphafold';
 import { diffAligned, mapToModelResidues } from './model/compare';
 import { cursorAt, move, neighbours, type Cursor, type Direction } from './nav/treeCursor';
 import { MolstarView, type AlignmentInfo } from './viewer/MolstarView';
@@ -55,6 +63,13 @@ export default function App() {
   const proteinQ = useProtein(node);
   const pinnedQ = useProtein(pinned);
 
+  // Ancestral reconstruction for the whole tree (ASR instant, folds queued).
+  const reconQ = useReconstruction(tree);
+  const recon = reconQ.data;
+  const prioritise = usePrioritise(recon?.jobId);
+  const ancestorOf = (n: GeneTreeNode | undefined) => (n && !n.leaf ? recon?.ancestors[n.id] : undefined);
+  const alnLength = tree ? (tree.nodes.get(tree.leafOrder[0])?.leaf?.alignedSeq.length ?? 0) : 0;
+
   const goTo = useCallback(
     (next: Cursor) => {
       if (!tree || !cursor || next.nodeId === cursor.nodeId) return;
@@ -83,44 +98,94 @@ export default function App() {
       if (dir) {
         e.preventDefault();
         nav(dir);
-      } else if (e.key === 'p' && node?.leaf) {
+      } else if (e.key === 'p' && node && (node.leaf || ancestorOf(node))) {
         setPinnedId((p) => (p === node.id ? null : node.id));
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [nav, node]);
+  });
 
-  // Prefetch everything one flick away.
+  // Prefetch everything one flick away; fold nearby ancestors first.
+  const jobId = recon?.jobId;
   useEffect(() => {
-    if (tree && cursor) prefetchNodes(qc, tree, neighbours(tree, cursor));
-  }, [qc, tree, cursor]);
+    if (!tree || !cursor) return;
+    const near = [cursor.nodeId, ...neighbours(tree, cursor)];
+    prefetchNodes(qc, tree, near);
+    if (!jobId) return;
+    for (const id of near) {
+      const st = qc.getQueryData<Reconstruction>(['reconstruction', tree.treeId, tree.leafOrder.length])?.ancestors[id]
+        ?.structure.status;
+      if (st === 'pending' || st === 'error') prioritise.mutate(id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run on navigation, not on every poll
+  }, [qc, tree, cursor, jobId]);
 
-  // Compare mode: a pinned reference and a different extant protein in view.
-  const comparing = !!(tree && node?.leaf && pinned?.leaf && pinned.id !== node.id);
+  /** Row of the shared alignment for any node: leaf or reconstructed ancestor. */
+  const alignedOf = (n: GeneTreeNode | undefined): string | null => {
+    if (!n) return null;
+    if (n.leaf) return n.leaf.alignedSeq;
+    const a = ancestorOf(n);
+    return a ? ancestorAligned(a, alnLength) : null;
+  };
+
+  /** Structure to show for a node, with stable identity across polls. */
+  const nodeStatus = (n: GeneTreeNode | undefined) => ancestorOf(n)?.structure.status;
+  const currentDone = nodeStatus(node) === 'done';
+  const pinnedDone = nodeStatus(pinned) === 'done';
+  const currentAncestorSrc = useMemo(
+    () => (jobId && node && !node.leaf && currentDone ? ancestorStructure(jobId, node.id) : null),
+    [jobId, node, currentDone],
+  );
+  const pinnedAncestorSrc = useMemo(
+    () => (jobId && pinned && !pinned.leaf && pinnedDone ? ancestorStructure(jobId, pinned.id) : null),
+    [jobId, pinned, pinnedDone],
+  );
+  const structureOf = (n: GeneTreeNode | undefined, leafQ: typeof proteinQ, ancSrc: StructureSource | null) =>
+    n?.leaf ? (leafQ.data?.structure ?? null) : ancSrc;
+
+  // Compare mode: a pinned reference and a different node in view, both
+  // with sequences (extant, or reconstructed ancestors).
+  const curAligned = alignedOf(node);
+  const pinAligned = alignedOf(pinned);
+  const comparing = !!(tree && node && pinned && pinned.id !== node.id && curAligned && pinAligned);
   const compare = useMemo(() => {
-    if (!comparing || !tree || !node?.leaf || !pinned?.leaf) return null;
-    const diff = diffAligned(pinned.leaf.alignedSeq, node.leaf.alignedSeq);
-    const modelSeq = proteinQ.data?.uniprot?.sequence;
-    const highlight = modelSeq ? mapToModelResidues(diff.changedIndices, ungapped(node.leaf.alignedSeq), modelSeq) : null;
-    const split = tree.nodes.get(lca(tree, pinned.id, node.id))!;
-    return { diff, highlight, split };
-  }, [comparing, tree, node, pinned, proteinQ.data]);
+    if (!comparing || !tree || !node || !pinned || !curAligned || !pinAligned) return null;
+    const diff = diffAligned(pinAligned, curAligned);
+    // Map changed positions onto the 3D model's residue numbering. Ancestor
+    // models are numbered by their own sequence; AlphaFold by UniProt.
+    const modelSeq = node.leaf ? proteinQ.data?.uniprot?.sequence : ungapped(curAligned);
+    const highlight = modelSeq ? mapToModelResidues(diff.changedIndices, ungapped(curAligned), modelSeq) : null;
+    const common = lca(tree, pinned.id, node.id);
+    const split = tree.nodes.get(common)!;
+    // One is the other's ancestor: a single lineage, not a split.
+    const lineage = common === pinned.id || common === node.id;
+    return { diff, highlight, split, lineage };
+  }, [comparing, tree, node, pinned, curAligned, pinAligned, proteinQ.data]);
 
-  const source = node?.leaf ? (proteinQ.data?.structure ?? null) : null;
-  const reference = comparing ? (pinnedQ.data?.structure ?? null) : null;
+  const source = structureOf(node, proteinQ, currentAncestorSrc);
+  const reference = comparing ? structureOf(pinned, pinnedQ, pinnedAncestorSrc) : null;
 
+  const ancestorError = reconQ.error ? (reconQ.error as Error).message : null;
   const emptyMessage = !node
     ? 'Search for a gene to begin'
     : !node.leaf
-      ? 'Ancestral structure not yet reconstructed'
+      ? ancestorError
+        ? 'Start the ancestor service to see reconstructed structures'
+        : nodeStatus(node) === 'error'
+          ? 'Structure prediction failed for this ancestor'
+          : 'Predicting ancestral structure…'
       : proteinQ.isLoading
         ? 'Looking up structure…'
         : 'No AlphaFold model available for this protein';
 
   const can = (dir: Direction) => !!tree && !!cursor && move(tree, cursor, dir).nodeId !== cursor.nodeId;
   const label = (n: typeof node) =>
-    n?.leaf ? `${n.leaf.symbol ?? n.leaf.geneId} ${n.taxon.commonName ?? n.taxon.scientificName}` : '';
+    n?.leaf
+      ? `${n.leaf.symbol ?? n.leaf.geneId} ${n.taxon.commonName ?? n.taxon.scientificName}`
+      : n
+        ? `Anc. ${n.taxon.scientificName}`
+        : '';
   const [ox, oy] = cardSwipe.offset;
 
   return (
@@ -162,7 +227,9 @@ export default function App() {
                 uniprot={proteinQ.data?.uniprot}
                 loading={proteinQ.isLoading}
                 pinnedId={pinnedId}
-                onTogglePin={() => setPinnedId((p) => (p === node.id ? null : node.leaf ? node.id : p))}
+                onTogglePin={() => setPinnedId((p) => (p === node.id ? null : node.id))}
+                ancestor={ancestorOf(node)}
+                ancestorError={ancestorError}
               />
             </div>
           </div>
@@ -174,7 +241,12 @@ export default function App() {
               diff={compare.diff}
               refLabel={label(pinned)}
               curLabel={label(node)}
-              split={{ taxon: compare.split.taxon.scientificName, mya: compare.split.taxon.mya, event: compare.split.event }}
+              split={{
+                taxon: compare.split.taxon.scientificName,
+                mya: compare.split.taxon.mya,
+                event: compare.split.event,
+                lineage: compare.lineage,
+              }}
               alignment={alignment}
               mapped={!!compare.highlight}
             />

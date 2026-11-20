@@ -136,3 +136,4 @@
 @media (max-width: 600px) {
   .seqstrip-slot { right: 10px; bottom: 170px; }
 }
+.badge--ancestor { background: rgba(232, 196, 104, 0.15); color: #e8c468; }

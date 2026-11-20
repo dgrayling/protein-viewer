@@ -6,7 +6,7 @@ interface Props {
   refLabel: string;
   curLabel: string;
   /** Last common ancestor of the pair. */
-  split: { taxon: string; mya?: number; event?: string };
+  split: { taxon: string; mya?: number; event?: string; lineage?: boolean };
   alignment: AlignmentInfo | null;
   /** False if changed residues couldn't be mapped onto the 3D model. */
   mapped: boolean;
@@ -23,8 +23,17 @@ export function SequenceStrip({ diff, refLabel, curLabel, split, alignment, mapp
         {alignment && <span title="TM-score > 0.5 means the same fold">TM {alignment.tmScore.toFixed(2)} · {alignment.rmsd.toFixed(1)} Å</span>}
       </div>
       <div className="seqstrip-split">
-        Split {split.mya != null ? `~${split.mya} Mya ` : ''}in <em>{split.taxon}</em> by{' '}
-        <span className={`event--${split.event}`}>{split.event === 'duplication' ? 'gene duplication' : split.event}</span>
+        {split.lineage ? (
+          <>
+            Same lineage: changes accumulated since the <em>{split.taxon}</em> ancestor
+            {split.mya != null ? ` (~${split.mya} Mya)` : ''}
+          </>
+        ) : (
+          <>
+            Split {split.mya != null ? `~${split.mya} Mya ` : ''}in <em>{split.taxon}</em> by{' '}
+            <span className={`event--${split.event}`}>{split.event === 'duplication' ? 'gene duplication' : split.event}</span>
+          </>
+        )}
         {!mapped && <span className="muted"> · changes not mapped to 3D (sequence mismatch)</span>}
       </div>
       <div className="seqstrip-scroll">

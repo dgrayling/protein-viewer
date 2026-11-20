@@ -36,7 +36,10 @@ const COLORS = {
   changed: Color(0xff8a5c),
 };
 
-type StructRef = StateObjectSelector<SO.Molecule.Structure>;
+/** AlphaFold-style confidence palette: very low → very high. */
+const CONFIDENCE_SCALE = [Color(0xff7d45), Color(0xffdb13), Color(0x65cbf3), Color(0x0053d6)];
+
+type StructRef =StateObjectSelector<SO.Molecule.Structure>;
 
 async function loadStructure(plugin: PluginContext, src: StructureSource): Promise<StructRef> {
   const data = await plugin.builders.data.download({ url: src.url, isBinary: src.isBinary }, { state: { isGhost: true } });
@@ -125,8 +128,21 @@ export function MolstarView({ source, reference, highlight, onAligned, emptyMess
         const rep = plugin.builders.structure.representation;
 
         if (!reference) {
-          // Single protein: colour by per-residue confidence (pLDDT).
-          await rep.addRepresentation(cur, { type: 'cartoon', color: 'plddt-confidence' as 'uniform' });
+          if (source.provenance === 'ancestor') {
+            // Reconstructed ancestor: B-factor holds pLDDT x ASR posterior
+            // (0-100). Same palette as AlphaFold's pLDDT for consistency.
+            await rep.addRepresentation(cur, {
+              type: 'cartoon',
+              color: 'uncertainty',
+              colorParams: {
+                domain: [0, 100],
+                list: { kind: 'interpolate', colors: CONFIDENCE_SCALE },
+              },
+            });
+          } else {
+            // AlphaFold model: colour by per-residue confidence (pLDDT).
+            await rep.addRepresentation(cur, { type: 'cartoon', color: 'plddt-confidence' as 'uniform' });
+          }
         } else {
           const ref = await loadStructure(plugin, reference);
           if (stale) return;
