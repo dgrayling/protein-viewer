@@ -136,7 +136,9 @@ export function MolstarView({ source, reference, highlight, onAligned, emptyMess
               color: 'uncertainty',
               colorParams: {
                 domain: [0, 100],
-                list: { kind: 'interpolate', colors: CONFIDENCE_SCALE },
+                // Mol*'s uncertainty theme reverses its scale (high B =
+                // uncertain); our B is confidence, so pass the palette reversed.
+                list: { kind: 'interpolate', colors: [...CONFIDENCE_SCALE].reverse() },
               },
             });
           } else {
