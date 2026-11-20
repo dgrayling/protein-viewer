@@ -5,6 +5,7 @@ import type { GeneTree, GeneTreeNode } from '../model/geneTree';
 interface Props {
   tree: GeneTree;
   currentId: string;
+  pinnedId?: string | null;
   onSelect: (id: string) => void;
 }
 
@@ -14,7 +15,7 @@ const LABEL_W = 130;
 const PAD = 10;
 
 /** Cladogram: root on the left, extant proteins on the right. */
-export function TreeMinimap({ tree, currentId, onSelect }: Props) {
+export function TreeMinimap({ tree, currentId, pinnedId, onSelect }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const layout = useMemo(() => {
@@ -61,7 +62,7 @@ export function TreeMinimap({ tree, currentId, onSelect }: Props) {
           const p = pos(d);
           const n = d.data;
           const current = n.id === currentId;
-          const cls = `mm-node ${n.leaf ? 'mm-leaf' : `mm-${n.event}`} ${current ? 'mm-current' : ''}`;
+          const cls = `mm-node ${n.leaf ? 'mm-leaf' : `mm-${n.event}`} ${current ? 'mm-current' : ''} ${n.id === pinnedId ? 'mm-pinned' : ''}`;
           return (
             <g
               key={n.id}
@@ -76,6 +77,7 @@ export function TreeMinimap({ tree, currentId, onSelect }: Props) {
               {n.event === 'duplication' ? <rect x={-4} y={-4} width={8} height={8} /> : <circle r={n.leaf ? 3 : 4} />}
               {n.leaf && (
                 <text x={8} dy="0.32em">
+                  {n.id === pinnedId ? '📌 ' : ''}
                   {n.leaf.symbol ?? n.leaf.geneId} · {n.taxon.commonName ?? n.taxon.scientificName}
                 </text>
               )}

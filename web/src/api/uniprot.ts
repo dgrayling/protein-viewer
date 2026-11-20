@@ -5,6 +5,8 @@ export interface UniProtEntry {
   reviewed: boolean;
   proteinName?: string;
   function?: string;
+  /** Canonical sequence; AlphaFold models follow this numbering. */
+  sequence?: string;
 }
 
 interface RawEntry {
@@ -15,12 +17,13 @@ interface RawEntry {
     submissionNames?: { fullName?: { value?: string } }[];
   };
   comments?: { commentType?: string; texts?: { value?: string }[] }[];
+  sequence?: { value?: string };
 }
 
 async function search(query: string, signal?: AbortSignal): Promise<UniProtEntry | null> {
   const params = new URLSearchParams({
     query,
-    fields: 'accession,reviewed,protein_name,cc_function',
+    fields: 'accession,reviewed,protein_name,cc_function,sequence',
     format: 'json',
     size: '5',
   });
@@ -36,6 +39,7 @@ async function search(query: string, signal?: AbortSignal): Promise<UniProtEntry
     reviewed: !!e.entryType?.includes('Swiss-Prot'),
     proteinName: pd?.recommendedName?.fullName?.value ?? pd?.submissionNames?.[0]?.fullName?.value,
     function: e.comments?.find((c) => c.commentType === 'FUNCTION')?.texts?.[0]?.value,
+    sequence: e.sequence?.value,
   };
 }
 

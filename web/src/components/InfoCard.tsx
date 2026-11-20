@@ -9,6 +9,9 @@ interface Props {
   previousLeafId: string | null;
   uniprot?: UniProtEntry | null;
   loading: boolean;
+  /** Pinned reference protein for compare mode. */
+  pinnedId: string | null;
+  onTogglePin: () => void;
 }
 
 const EVENT_LABEL: Record<string, string> = {
@@ -18,7 +21,7 @@ const EVENT_LABEL: Record<string, string> = {
   unknown: 'Unknown event',
 };
 
-export function InfoCard({ tree, node, previousLeafId, uniprot, loading }: Props) {
+export function InfoCard({ tree, node, previousLeafId, uniprot, loading, pinnedId, onTogglePin }: Props) {
   if (!node.leaf) {
     const leaves = countLeaves(tree, node.id);
     return (
@@ -38,10 +41,21 @@ export function InfoCard({ tree, node, previousLeafId, uniprot, loading }: Props
     );
   }
 
-  const rel = previousLeafId ? relationship(tree, previousLeafId, node.id) : 'self';
-  const prev = previousLeafId ? tree.nodes.get(previousLeafId) : undefined;
+  // Badge relative to the pinned protein if any, else the one we came from.
+  const otherId = pinnedId ?? previousLeafId;
+  const rel = otherId ? relationship(tree, otherId, node.id) : 'self';
+  const prev = otherId ? tree.nodes.get(otherId) : undefined;
+  const isPinned = pinnedId === node.id;
   return (
     <div className="info-card">
+      <button
+        className={`pin ${isPinned ? 'pin--on' : ''}`}
+        onClick={onTogglePin}
+        onPointerDown={(e) => e.stopPropagation()}
+        title={isPinned ? 'Unpin' : 'Pin as reference, then flick to compare others against it'}
+      >
+        {isPinned ? 'Pinned' : pinnedId ? 'Pin this instead' : 'Pin & compare'}
+      </button>
       <div className="info-kicker">
         {node.taxon.commonName ?? node.taxon.scientificName} · <em>{node.taxon.scientificName}</em>
       </div>

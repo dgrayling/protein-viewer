@@ -98,3 +98,41 @@
 .dot--spec { background: var(--spec); border-radius: 50%; }
 .dot--dup { background: var(--dup); }
 .molstar-canvas-host { position: absolute; inset: 0; }
+
+/* ---------- Swipe surfaces ---------- */
+.swipe-surface { touch-action: none; user-select: none; -webkit-user-select: none; transition: opacity 120ms; will-change: transform; }
+.swipe-surface:active { cursor: grabbing; }
+.edge-swipe { position: absolute; top: 0; bottom: 0; width: 28px; touch-action: none; z-index: 1; }
+.edge-swipe--left { left: 0; }
+.edge-swipe--right { right: 0; }
+@media (hover: hover) { .edge-swipe { width: 14px; } }
+
+/* ---------- Pin ---------- */
+.info-card { position: relative; }
+.pin {
+  float: right; margin: 0 0 4px 8px; padding: 3px 9px; font-size: 12px; border-radius: 999px;
+  border: 1px solid var(--line); background: transparent; color: var(--muted);
+}
+.pin--on { border-color: #e8c468; color: #e8c468; background: rgba(232, 196, 104, 0.12); }
+.mm-pinned text { fill: #e8c468; }
+
+/* ---------- Sequence strip ---------- */
+.seqstrip-slot { position: absolute; left: 10px; right: 134px; bottom: 12px; }
+.seqstrip {
+  padding: 8px 10px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line);
+  backdrop-filter: blur(8px); font-size: 12px;
+}
+.seqstrip-summary { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.seqstrip-summary span { color: var(--muted); }
+.seqstrip-split { margin: 2px 0 6px; color: var(--muted); }
+.seqstrip-scroll { overflow-x: auto; scrollbar-width: thin; }
+.seqstrip-rows { display: grid; grid-template-columns: auto auto; column-gap: 8px; width: max-content; }
+.seqstrip-label { position: sticky; left: 0; background: var(--panel-solid); color: var(--muted); font-size: 11px; padding-right: 6px; white-space: nowrap; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+.seqstrip-row { display: flex; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11px; line-height: 16px; }
+.aa { width: 9px; text-align: center; }
+.aa--same { color: #4b5566; }
+.aa--sub { color: #0b0f17; background: var(--dup); }
+.aa--ins, .aa--del { color: #e8c468; background: rgba(232, 196, 104, 0.15); }
+@media (max-width: 600px) {
+  .seqstrip-slot { right: 10px; bottom: 170px; }
+}
