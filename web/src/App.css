@@ -1,0 +1,100 @@
+/* ---------- Layout: mobile first ---------- */
+.app {
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas: 'header' 'stage' 'tree';
+}
+.app-header { grid-area: header; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel-solid); }
+.app-header h1 { margin: 0 0 6px; font-size: 15px; font-weight: 600; letter-spacing: 0.02em; color: var(--muted); }
+.stage { grid-area: stage; position: relative; min-height: 0; }
+.tree-panel { grid-area: tree; background: var(--panel-solid); border-top: 1px solid var(--line); min-height: 0; display: flex; flex-direction: column; }
+.tree-panel.open { max-height: 38dvh; }
+
+@media (min-width: 900px) {
+  .app {
+    grid-template-columns: 1fr 380px;
+    grid-template-rows: auto 1fr;
+    grid-template-areas: 'header header' 'stage tree';
+  }
+  .tree-panel, .tree-panel.open { max-height: none; border-top: none; border-left: 1px solid var(--line); }
+  .tree-toggle { pointer-events: none; }
+}
+
+/* ---------- Search ---------- */
+.search { display: flex; flex-wrap: wrap; gap: 6px; }
+.search input {
+  flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 16px; /* 16px stops iOS zoom */
+}
+.search > button { padding: 0 14px; border-radius: 8px; border: none; background: var(--accent); color: #04121c; font-weight: 600; }
+.search-examples { flex-basis: 100%; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.search-examples button { padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); background: transparent; font-size: 12px; color: var(--muted); }
+
+/* ---------- Viewer ---------- */
+.molstar-container { position: absolute; inset: 0; }
+.molstar-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.viewer-overlay {
+  position: absolute; inset: 0; display: grid; place-items: center; padding: 24px;
+  text-align: center; color: var(--muted); pointer-events: none;
+}
+.viewer-overlay--subtle { inset: auto 0 50% 0; }
+.viewer-overlay--error { color: #ff8080; }
+
+/* ---------- Info card ---------- */
+.card-slot { position: absolute; top: 10px; left: 10px; right: 10px; pointer-events: none; animation: card-in 200ms ease-out; }
+.info-card {
+  pointer-events: auto; max-width: 520px; padding: 10px 14px; border-radius: 12px;
+  background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(8px);
+}
+.info-card h2 { margin: 2px 0 4px; font-size: 18px; line-height: 1.25; }
+.info-card p { margin: 4px 0; }
+.info-card--ancestor { border-color: #6b5a2a; }
+.info-kicker { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.info-card--ancestor .info-kicker { color: #e8c468; }
+.muted { color: var(--muted); font-weight: 400; }
+.small { font-size: 13px; }
+.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.badge { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; margin: 2px 0; }
+.badge--ortholog { background: rgba(74, 222, 128, 0.15); color: var(--ortho); }
+.badge--paralog { background: rgba(255, 138, 92, 0.15); color: var(--para); }
+.event { font-size: 13px; }
+.event--speciation { color: var(--spec); }
+.event--duplication { color: var(--dup); }
+@keyframes card-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+.banner { position: absolute; left: 10px; right: 10px; bottom: 120px; padding: 10px 12px; border-radius: 10px; }
+.banner--error { background: rgba(120, 20, 20, 0.85); }
+
+/* ---------- D-pad ---------- */
+.dpad {
+  position: absolute; right: 12px; bottom: 12px;
+  display: grid; grid-template: 'u u' 'l r' 'd d' / 52px 52px; gap: 6px;
+}
+.dpad button {
+  border: 1px solid var(--line); background: var(--panel); border-radius: 12px;
+  height: 44px; font-size: 16px; display: grid; place-items: center; line-height: 1;
+}
+.dpad button span { font-size: 10px; color: var(--muted); }
+.dpad button:disabled { opacity: 0.3; cursor: default; }
+.dpad-up { grid-area: u; } .dpad-left { grid-area: l; } .dpad-right { grid-area: r; } .dpad-down { grid-area: d; }
+
+/* ---------- Tree minimap ---------- */
+.tree-toggle { padding: 8px 12px; border: none; background: none; text-align: left; font-size: 13px; color: var(--muted); }
+.minimap { overflow: auto; flex: 1; min-height: 0; padding: 0 8px 8px; }
+.mm-link { fill: none; stroke: var(--line); stroke-width: 1.5; }
+.mm-link--path { stroke: var(--accent); stroke-width: 2; }
+.mm-node { cursor: pointer; }
+.mm-hit { fill: transparent; }
+.mm-node circle, .mm-node rect:not(.mm-hit) { fill: var(--muted); }
+.mm-speciation circle { fill: var(--spec); }
+.mm-duplication rect:not(.mm-hit) { fill: var(--dup); }
+.mm-node text { font-size: 11px; fill: var(--text); }
+.mm-current circle, .mm-current rect:not(.mm-hit) { stroke: #fff; stroke-width: 2; }
+.mm-current text { font-weight: 700; fill: var(--accent); }
+.mm-current .mm-hit { fill: rgba(92, 200, 255, 0.12); }
+.mm-legend { display: flex; gap: 12px; font-size: 11px; color: var(--muted); padding: 4px 4px 0; }
+.dot { display: inline-block; width: 8px; height: 8px; margin-right: 4px; vertical-align: middle; }
+.dot--spec { background: var(--spec); border-radius: 50%; }
+.dot--dup { background: var(--dup); }
+.molstar-canvas-host { position: absolute; inset: 0; }
