@@ -1,4 +1,6 @@
 .venv/
-data/
+# Results cache is tracked so a fresh clone serves finished ancestors instantly;
+# IQ-TREE working files are scratch (and record the host name).
+data/jobs/*/iqtree/
 __pycache__/
 .pytest_cache/

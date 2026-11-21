@@ -50,7 +50,11 @@ python3 -m venv .venv
 ESMFold runs on CUDA, Apple MPS, or CPU (picked automatically; ESM-2 runs in
 fp16 on GPUs). On an M3 MacBook (16 GB) a ~150 aa globin takes 20–55 s per
 fold. Allowed browser origins are set with `CORS_ORIGINS` (comma-separated).
-Results are cached in `service/data/` (git-ignored).
+Results are cached in `service/data/` and committed, so a fresh clone serves
+finished ancestors instantly (the job ID is a hash of the tree, and folds are
+keyed by sequence, so the cache is reused as long as Ensembl's tree is unchanged).
+Currently cached: all 45 HBB ancestors. A service stopped mid-run resumes on
+restart: interrupted folds return to the queue.
 
 ## How it works
 
@@ -69,7 +73,7 @@ Done: gene-tree navigation (swipe, keyboard, minimap), ortholog/paralog badges,
 divergence dates, pin & compare, ancestral reconstruction and folding.
 
 Next:
-- Precompute showcase families (opening a gene in the app queues all its ancestors): MB, RHO, CYCS, LYZ, INS.
+- Precompute the remaining showcase families (opening a gene in the app queues all its ancestors; HBB is done): MB, RHO, CYCS, LYZ, INS.
 - Code-split Mol* (bundle is ~970 KB gzipped).
 - Service logging: app log lines are swallowed by uvicorn's logging config.
 - Deploy: static site for `web/`, GPU host for `service/`.
